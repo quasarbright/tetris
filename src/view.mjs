@@ -21,7 +21,7 @@ function mix(h, w, t) {
 
 // one glassy block per color and size, drawn once and reused
 const spriteCache = new Map();
-function blockSprite(color, size, dpr) {
+export function blockSprite(color, size, dpr) {
   const key = `${color}|${size}|${dpr}`;
   let c = spriteCache.get(key);
   if (c) return c;
