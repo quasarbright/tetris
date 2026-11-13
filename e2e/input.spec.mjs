@@ -76,11 +76,15 @@ test("the AI button and A key hand the game over and back", async ({ page }) => 
   await expect.poll(async () => (await info(page)).aiPieces, { timeout: 10000 }).toBeGreaterThan(2);
   await page.keyboard.press("a");
   expect((await info(page)).driver).toBe("human");
-  // keys work again right away
-  const x = (await info(page)).current?.x;
-  if (x !== undefined && x < 7) {
-    await page.keyboard.press("ArrowRight");
-    await page.waitForTimeout(60);
-    expect((await info(page)).current.x).toBe(x + 1);
-  }
+  // keys work again right away. (Put a fresh T at the spawn first: the AI's last hard drop may
+  // still be locking and spawning when control comes back, which would move the piece.)
+  await page.evaluate(() => {
+    const st = tetris.state();
+    st.current = ["T", 0]; st.position = { x: 3, y: 19 }; st.level = 1;
+    st.spawnRequired = false; st.hardReleased = true; st.shiftTime = 0;
+    tetris.load(st);
+  });
+  await page.keyboard.press("ArrowRight");
+  await page.waitForTimeout(60);
+  expect((await info(page)).current.x).toBe(4);
 });

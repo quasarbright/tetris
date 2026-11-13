@@ -189,7 +189,7 @@ test("menu from pause goes back to the start screen with the AI demo running", a
   await page.click("#pauseBtn");
   await page.click("#menuBtn");
   await expect(page.locator("#menu")).toBeVisible();
+  // the demo game moves once the AI worker's first answer arrives (slow under load)
   const f = (await info(page)).frame;
-  await page.waitForTimeout(500);
-  expect((await info(page)).frame).toBeGreaterThan(f);
+  await expect.poll(async () => (await info(page)).frame, { timeout: 5000 }).toBeGreaterThan(f);
 });
