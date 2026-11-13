@@ -1,0 +1,375 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Tetris AI</title>
+  <link rel="stylesheet" href="https://quasarbright.github.io/sketches/shared/cohesion.css" />
+  <script type="module" src="https://quasarbright.github.io/sketches/shared/cohesion.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bungee&family=Outfit:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg:        #0a0c1c;   /* night well */
+      --panel:     #141836;
+      --panel-2:   #1e2350;
+      --border:    #262c56;
+      --text:      #eef0ff;
+      --muted:     #9aa2d4;
+      --faint:     #5e6699;
+      --accent:    #3fe0e6;   /* the I piece */
+      --accent-hi: #a6f6f8;
+      --on-accent: #06222a;
+      --lip:       #070818;
+      --font-ui:      "Outfit", system-ui, sans-serif;
+      --font-mono:    "IBM Plex Mono", ui-monospace, monospace;
+      --font-display: "Bungee", "Outfit", sans-serif;
+    }
+    html, body { height: 100%; overflow: hidden; background: var(--bg); margin: 0; }
+    body {
+      font-family: var(--font-ui); color: var(--text);
+      background: radial-gradient(90% 70% at 50% 45%, hsl(var(--well-hue, 232) 50% 12%), var(--bg) 70%);
+      -webkit-user-select: none; user-select: none; -webkit-touch-callout: none;
+    }
+    #board, #glow { position: absolute; top: 0; left: 0; display: block; }
+    #glow { filter: blur(12px); opacity: .75; pointer-events: none; }
+    #board { touch-action: none; }
+    button { font: inherit; }
+    [hidden] { display: none !important; }
+    svg.tx-ico { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
+
+    /* chunky pressable buttons with a darker lip they sink into (as in pancakes) */
+    .tx-btn {
+      --lip-c: var(--lip);
+      display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+      font: 800 1rem var(--font-ui); color: var(--text);
+      background: var(--panel-2); border: 0; border-radius: 16px; padding: 12px 20px; cursor: pointer;
+      box-shadow: 0 4px 0 var(--lip-c), 0 8px 18px rgba(0,0,0,.4);
+      transition: transform .08s, box-shadow .08s, background .15s;
+      touch-action: manipulation;
+    }
+    .tx-btn:hover { background: #2a3068; }
+    .tx-btn:active:not(:disabled), .tx-btn.is-down { transform: translateY(3px); box-shadow: 0 1px 0 var(--lip-c), 0 4px 10px rgba(0,0,0,.3); }
+    .tx-btn:focus-visible { outline: 3px solid var(--accent-hi); outline-offset: 3px; }
+    .tx-btn.is-cyan { background: var(--accent); color: var(--on-accent); --lip-c: #12808a; }
+    .tx-btn.is-cyan:hover { background: #6febef; }
+    .tx-btn.is-ai-on { background: #ffd84a; color: #2a2000; --lip-c: #a3800f; }
+    .tx-btn.is-ai-on:hover { background: #ffe47a; }
+    .tx-round { width: 48px; height: 48px; padding: 0; border-radius: 50%; }
+
+    /* ---------- start screen ---------- */
+    .tx-menu {
+      position: fixed; inset: 0; z-index: 10; display: grid; place-items: center; padding: 24px 16px 60px;
+      background: rgba(10,12,28,.55); backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px);
+      overflow-y: auto;
+    }
+    .tx-menu-inner { text-align: center; max-width: 640px; }
+    .tx-logo {
+      margin: 0; font: 400 clamp(3rem, 15vw, 6.4rem)/0.95 var(--font-display); color: var(--accent);
+      text-shadow: 0 6px 0 #12808a, 0 16px 40px rgba(0,0,0,.6); transform: rotate(-3deg);
+    }
+    .tx-logo span { display: block; font-size: .52em; color: #ffd84a; text-shadow: 0 5px 0 #a3800f, 0 14px 30px rgba(0,0,0,.6); }
+    .tx-pitch {
+      margin: 26px auto 30px; max-width: 460px; font-size: 1.08rem; line-height: 1.5; color: #d6dbff;
+      text-shadow: 0 1px 2px rgba(5,6,16,.9), 0 0 14px rgba(5,6,16,.8);
+    }
+    .tx-modes { display: flex; gap: 16px; justify-content: center; }
+    .tx-mode { flex-direction: column; gap: 6px; width: 210px; padding: 20px 16px 18px; border-radius: 22px; }
+    .tx-mode-name { font: 400 1.5rem/1 var(--font-display); }
+    .tx-mode-sub { font-weight: 500; font-size: .9rem; color: var(--muted); }
+    .tx-mode.is-cyan .tx-mode-sub { color: #0b4a50; }
+    .tx-best { margin-top: 18px; font-weight: 600; color: var(--muted); font-size: .95rem; text-shadow: 0 1px 2px #000; }
+    .tx-best b { font-family: var(--font-mono); color: var(--text); font-weight: 500; }
+
+    /* ---------- in play: top bar ---------- */
+    .tx-bar {
+      position: fixed; top: 14px; left: 16px; right: 16px; z-index: 4; height: 60px;
+      display: flex; align-items: flex-start; justify-content: space-between; pointer-events: none;
+    }
+    .tx-bar > * { pointer-events: auto; }
+    .tx-bar-side { display: flex; gap: 10px; }
+    .tx-score {
+      position: absolute; left: 50%; top: 0; transform: translateX(-50%);
+      display: flex; align-items: stretch; background: var(--panel); border-radius: 20px; padding: 8px 6px;
+      box-shadow: 0 4px 0 var(--lip), 0 10px 24px rgba(0,0,0,.45);
+    }
+    .tx-stat { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 0 18px; min-width: 64px; }
+    .tx-stat + .tx-stat { border-left: 2px solid var(--border); }
+    .tx-stat-label { font: 700 .72rem var(--font-ui); letter-spacing: .06em; color: var(--faint); }
+    .tx-stat-value { font: 800 1.35rem/1.15 var(--font-ui); font-variant-numeric: tabular-nums; }
+    .tx-stat.is-score .tx-stat-value { font: 400 1.7rem/1.1 var(--font-display); color: var(--accent); min-width: 6ch; text-align: center; }
+    .tx-ai-badge {
+      align-self: center; pointer-events: none; white-space: nowrap;
+      font: 700 .85rem var(--font-ui); color: #2a2000; background: #ffd84a; padding: 5px 12px; border-radius: 999px;
+      box-shadow: 0 3px 0 #a3800f;
+    }
+
+    /* ---------- bottom dock (desktop) ---------- */
+    .tx-dock {
+      position: fixed; left: 50%; bottom: 38px; transform: translateX(-50%); z-index: 4;
+      display: flex; align-items: center; gap: 14px; padding: 10px 12px; border-radius: 22px;
+      background: rgba(20,24,54,.82); box-shadow: 0 4px 0 var(--lip), 0 10px 26px rgba(0,0,0,.45);
+      white-space: nowrap;
+    }
+    .tx-keys { display: flex; gap: 12px; color: var(--muted); font-size: .85rem; font-weight: 600; padding: 0 6px; }
+    .tx-keys kbd {
+      font: 500 .78rem var(--font-mono); color: var(--text); background: var(--panel-2); border-radius: 6px;
+      padding: 2px 6px; box-shadow: 0 2px 0 var(--lip); margin-right: 4px;
+    }
+    .tx-ai-controls { display: flex; align-items: center; gap: 16px; }
+    .tx-ctl-label { display: flex; flex-direction: column; gap: 3px; font: 700 .72rem var(--font-ui); color: var(--faint); letter-spacing: .04em; }
+    .tx-ctl-row { display: flex; align-items: center; gap: 8px; }
+    .tx-val { font: 500 .85rem var(--font-mono); color: var(--text); width: 7ch; text-align: right; }
+    .tx-val.is-level { width: 2.5ch; text-align: center; }
+    input.tx-range { width: 150px; accent-color: #ffd84a; margin: 0; }
+    .tx-step { width: 30px; height: 30px; padding: 0; border-radius: 10px; font-size: 1.1rem; box-shadow: 0 3px 0 var(--lip); }
+    .tx-seg { display: inline-flex; background: var(--panel-2); border-radius: 10px; padding: 3px; gap: 2px; }
+    .tx-seg button {
+      border: 0; background: transparent; color: var(--muted); font: 700 .82rem var(--font-ui);
+      padding: 5px 9px; border-radius: 8px; cursor: pointer; touch-action: manipulation;
+    }
+    .tx-seg button.is-on { background: #ffd84a; color: #2a2000; }
+
+    /* ---------- touch controls (phones) ---------- */
+    .tx-pad {
+      position: fixed; left: 0; right: 0; bottom: 30px; z-index: 4; padding: 0 14px;
+      display: flex; justify-content: space-between; align-items: flex-end; gap: 10px;
+    }
+    .tx-pad-side { display: grid; gap: 10px; }
+    .tx-pad-left { grid-template-columns: repeat(3, 58px); grid-template-rows: 46px 58px; }
+    .tx-pad-right { grid-template-columns: repeat(2, 64px); grid-template-rows: 58px 58px; }
+    .tx-pad .tx-btn { padding: 0; border-radius: 18px; width: 100%; height: 100%; }
+    .tx-pad .tx-hold { grid-column: 1 / 2; grid-row: 1; font-size: .8rem; border-radius: 14px; }
+    .tx-pad .tx-hard { grid-column: 1 / -1; }
+    .tx-pad svg.tx-ico { width: 26px; height: 26px; stroke-width: 2.8; }
+
+    /* ---------- cards (pause, game over) ---------- */
+    .tx-over { position: fixed; inset: 0; z-index: 9; display: grid; place-items: center; padding: 16px; background: rgba(5,6,16,.6); }
+    .tx-card {
+      width: min(380px, 100%); text-align: center; padding: 30px 26px 26px; background: var(--panel);
+      border-radius: 26px; box-shadow: 0 6px 0 var(--lip), 0 24px 60px rgba(0,0,0,.6);
+      animation: tx-pop .45s cubic-bezier(.2, 1.5, .4, 1);
+    }
+    @keyframes tx-pop { from { transform: scale(.6) translateY(30px); opacity: 0; } }
+    .tx-card h2 { margin: 0; font: 400 2.4rem/1 var(--font-display); color: var(--accent); transform: rotate(-2deg); }
+    .tx-card .tx-card-sub { margin: 12px 0 0; color: var(--muted); font-weight: 600; }
+    .tx-results { display: grid; grid-template-columns: 1fr 1fr; gap: 14px 0; margin: 22px 0 24px; }
+    .tx-results .tx-stat:nth-child(2) { border-left: 0; }
+    .tx-card-actions { display: flex; flex-direction: column; gap: 12px; width: min(240px, 100%); margin: 0 auto; }
+    .tx-new-best { color: #ffd84a; font-weight: 800; margin-top: 10px; }
+
+    /* about modal */
+    .cohesion-about .tx-diagram { display: block; width: 100%; max-width: 440px; margin: 10px auto 4px; border-radius: 10px; background: #0d1030; }
+    .cohesion-about .tx-caption { text-align: center; color: var(--muted); font-size: .85rem; margin: 0 0 14px; min-height: 2.6em; }
+    .cohesion-about .tx-w { font-family: var(--font-mono); font-size: .9em; }
+    .cohesion-about table.tx-weights { margin: 6px auto 14px; border-collapse: collapse; font-size: .92rem; }
+    .cohesion-about table.tx-weights td { padding: 3px 10px; }
+    .cohesion-about table.tx-weights td:last-child { font-family: var(--font-mono); text-align: right; }
+
+    mike-footer[overlay] { z-index: 11 !important; }
+
+    @media (max-width: 639px) {
+      .tx-bar { top: 10px; left: 12px; right: 12px; height: 104px; }
+      .tx-score { top: 56px; width: 100%; justify-content: center; padding: 5px 2px; }
+      .tx-stat { padding: 0 10px; min-width: 0; flex: 1; }
+      .tx-stat.is-score .tx-stat-value { font-size: 1.35rem; }
+      .tx-stat-value { font-size: 1.1rem; }
+      .tx-round { width: 44px; height: 44px; }
+      .tx-dock { bottom: 30px; left: 12px; right: 12px; transform: none; flex-wrap: wrap; justify-content: center; gap: 10px; padding: 10px; white-space: normal; }
+      .tx-ai-controls { flex-wrap: wrap; justify-content: center; gap: 10px 16px; }
+      input.tx-range { width: 120px; }
+      .tx-modes { flex-direction: column; align-items: center; gap: 12px; }
+      .tx-mode { width: 100%; max-width: 300px; }
+    }
+    @media (prefers-reduced-motion: reduce) { .tx-card { animation: none; } }
+  </style>
+</head>
+<body>
+  <canvas id="glow"></canvas>
+  <canvas id="board"></canvas>
+
+  <!-- start screen -->
+  <div class="tx-menu" id="menu">
+    <div class="tx-menu-inner">
+      <h1 class="tx-logo">Tetris<span>AI</span></h1>
+      <p class="tx-pitch">Marathon Tetris with the rules of Mike's 2020 pygame version, and the AI he wrote
+        to play it. Play it yourself, or hand the game to the AI and turn the speed up.</p>
+      <div class="tx-modes">
+        <button class="tx-btn tx-mode is-cyan" id="playBtn" title="start a game you control (Enter)">
+          <span class="tx-mode-name">Play</span><span class="tx-mode-sub" id="playSub">arrows, space, Z/X, shift</span>
+        </button>
+        <button class="tx-btn tx-mode" id="watchBtn" title="start a game the AI plays; you can take over any time">
+          <span class="tx-mode-name" style="color:#ffd84a">Watch the AI</span><span class="tx-mode-sub">take over any time</span>
+        </button>
+      </div>
+      <div class="tx-best" id="best" hidden>Your best: <b id="bestVal"></b></div>
+    </div>
+  </div>
+
+  <!-- in play -->
+  <div class="tx-bar" id="bar" hidden>
+    <div class="tx-bar-side">
+      <button class="tx-btn tx-round" id="pauseBtn" title="pause (Esc or P)" aria-label="pause">
+        <svg class="tx-ico" viewBox="0 0 24 24" style="stroke-width:3.2"><path d="M9 5v14M15 5v14"/></svg>
+      </button>
+      <div class="tx-ai-badge" id="aiBadge" hidden>AI playing</div>
+    </div>
+    <div class="tx-score">
+      <div class="tx-stat is-score" title="points: line clears and T-spins times the level, plus 2 per row hard dropped and 1 per row soft dropped">
+        <span class="tx-stat-label">Score</span><span class="tx-stat-value" id="score">0</span>
+      </div>
+      <div class="tx-stat" title="lines cleared this game">
+        <span class="tx-stat-label">Lines</span><span class="tx-stat-value" id="lines">0</span>
+      </div>
+      <div class="tx-stat" title="the level sets how fast pieces fall; it goes up after 5 × level goal lines (a single is 1, a double 3, a triple 5, a tetris 8)">
+        <span class="tx-stat-label">Level</span><span class="tx-stat-value" id="level">6</span>
+      </div>
+    </div>
+    <div class="tx-bar-side">
+      <button class="tx-btn tx-round" id="aiTopBtn" title="hand the game to the AI (A)" aria-label="let the AI play">
+        <svg class="tx-ico" viewBox="0 0 24 24"><rect x="5" y="8" width="14" height="11" rx="3"/><path d="M12 4v4M9 13h.01M15 13h.01M2 13v2M22 13v2"/></svg>
+      </button>
+      <button class="tx-btn tx-round" id="soundBtn" title="sound on/off (M)" aria-label="sound">
+        <svg class="tx-ico" viewBox="0 0 24 24" id="soundIco"><path d="M11 5 6 9H3v6h3l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13"/></svg>
+      </button>
+      <button class="tx-btn tx-round" id="aboutBtn" title="how the AI decides" aria-label="about">
+        <svg class="tx-ico" viewBox="0 0 24 24" style="stroke-width:2.8"><path d="M9.2 9a3 3 0 0 1 5.8 1c0 2-3 2.5-3 4.5M12 18h.01"/></svg>
+      </button>
+    </div>
+  </div>
+  <div class="tx-dock" id="dock" hidden>
+    <button class="tx-btn is-cyan" id="aiBtn" title="hand the game to the AI, or take it back (A)">
+      <svg class="tx-ico" viewBox="0 0 24 24"><rect x="5" y="8" width="14" height="11" rx="3"/><path d="M12 4v4M9 13h.01M15 13h.01M2 13v2M22 13v2"/></svg>
+      <span id="aiBtnLabel">Let the AI play</span>
+    </button>
+    <div class="tx-keys" id="keys">
+      <span><kbd>← →</kbd>move</span><span><kbd>↓</kbd>soft drop</span><span><kbd>space</kbd>hard drop</span>
+      <span><kbd>Z</kbd><kbd>X</kbd>rotate</span><span><kbd>shift</kbd>hold</span>
+    </div>
+    <div class="tx-ai-controls" id="aiControls" hidden>
+      <label class="tx-ctl-label" title="how many game frames run per second. 60 is the speed the game was made for; the game also waits whenever the AI is still thinking">
+        speed
+        <span class="tx-ctl-row"><input type="range" class="tx-range" id="speed" min="0" max="100" step="1" title="how many game frames run per second. 60 is the speed the game was made for; the game also waits whenever the AI is still thinking"><span class="tx-val" id="speedVal"></span></span>
+      </label>
+      <div class="tx-ctl-label" title="gravity comes from the level: higher levels drop pieces faster, up to many rows per frame">
+        level (gravity)
+        <span class="tx-ctl-row">
+          <button class="tx-btn tx-step" id="levelDown" title="lower the level: slower gravity">−</button>
+          <span class="tx-val is-level" id="levelVal">6</span>
+          <button class="tx-btn tx-step" id="levelUp" title="raise the level: faster gravity">+</button>
+          <span class="tx-val" id="gravVal" title="rows a piece falls per frame at this level"></span>
+        </span>
+      </div>
+      <div class="tx-ctl-label" title="how many pieces the AI plans for: just the current one, or the current one and the next">
+        looks ahead
+        <span class="tx-seg" id="depthSeg">
+          <button data-depth="0" title="score each placement of the current piece on its own">1 piece</button>
+          <button data-depth="1" title="for each placement, also try every placement of the next piece and keep the best">2 pieces</button>
+        </span>
+      </div>
+    </div>
+  </div>
+
+  <div class="tx-pad" id="pad" hidden>
+    <div class="tx-pad-side tx-pad-left">
+      <button class="tx-btn tx-hold" data-input="HOLD" title="hold">Hold</button>
+      <button class="tx-btn" data-input="LEFT" title="move left" aria-label="left" style="grid-row:2"><svg class="tx-ico" viewBox="0 0 24 24"><path d="m15 5-7 7 7 7"/></svg></button>
+      <button class="tx-btn" data-input="SOFT" title="soft drop" aria-label="soft drop" style="grid-row:2"><svg class="tx-ico" viewBox="0 0 24 24"><path d="m5 9 7 7 7-7"/></svg></button>
+      <button class="tx-btn" data-input="RIGHT" title="move right" aria-label="right" style="grid-row:2"><svg class="tx-ico" viewBox="0 0 24 24"><path d="m9 5 7 7-7 7"/></svg></button>
+    </div>
+    <div class="tx-pad-side tx-pad-right">
+      <button class="tx-btn" data-input="RCCW" title="rotate counterclockwise" aria-label="rotate counterclockwise"><svg class="tx-ico" viewBox="0 0 24 24"><path d="M4 12a8 8 0 1 0 2.5-5.8L4 8.5"/><path d="M4 3.5v5h5"/></svg></button>
+      <button class="tx-btn" data-input="RCW" title="rotate clockwise" aria-label="rotate clockwise"><svg class="tx-ico" viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.5-5.8L20 8.5"/><path d="M20 3.5v5h-5"/></svg></button>
+      <button class="tx-btn is-cyan tx-hard" data-input="HARD" title="hard drop" aria-label="hard drop"><svg class="tx-ico" viewBox="0 0 24 24"><path d="m6 6 6 6 6-6M6 13l6 6 6-6"/></svg></button>
+    </div>
+  </div>
+
+  <!-- pause -->
+  <div class="tx-over" id="pauseCard" hidden>
+    <div class="tx-card" role="dialog" aria-labelledby="pauseTitle">
+      <h2 id="pauseTitle">Paused</h2>
+      <div class="tx-card-actions" style="margin-top:24px">
+        <button class="tx-btn is-cyan" id="resumeBtn" title="keep playing (Esc)">Resume</button>
+        <button class="tx-btn" id="restartBtn" title="start a new game">Restart</button>
+        <button class="tx-btn" id="menuBtn" title="back to the start screen">Menu</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- game over -->
+  <div class="tx-over" id="overCard" hidden>
+    <div class="tx-card" role="dialog" aria-labelledby="overTitle">
+      <h2 id="overTitle">Game over</h2>
+      <p class="tx-card-sub" id="overSub"></p>
+      <div class="tx-results">
+        <div class="tx-stat is-score" style="grid-column:1/-1"><span class="tx-stat-label">Score</span><span class="tx-stat-value" id="overScore"></span></div>
+        <div class="tx-stat"><span class="tx-stat-label">Lines</span><span class="tx-stat-value" id="overLines"></span></div>
+        <div class="tx-stat"><span class="tx-stat-label">Level</span><span class="tx-stat-value" id="overLevel"></span></div>
+      </div>
+      <div class="tx-card-actions">
+        <button class="tx-btn is-cyan" id="againBtn" title="start a new game (Enter)">Play again</button>
+        <button class="tx-btn" id="watchAgainBtn" title="start a new game the AI plays">Watch the AI</button>
+        <button class="tx-btn" id="overMenuBtn" title="back to the start screen">Menu</button>
+      </div>
+    </div>
+  </div>
+
+  <template id="aboutTpl">
+    <h2 class="title">How the AI decides</h2>
+    <p class="intro">Every time a new piece appears, the AI tries every place it could put it, scores the
+      board each one would leave, and goes with the best. Then it plays that placement with the same
+      key presses you have, one frame at a time.</p>
+
+    <div class="section-label">The game it plays</div>
+    <p>The rules are a straight port of Mike's 2020 pygame Tetris: a 7-piece bag, hold, three next pieces,
+      SRS rotation with wall kicks, half a second of lock delay, and gravity that speeds up every level.
+      The game advances in frames, 60 per second. Each frame it reads which keys are held, the way a
+      console does, and holding left or right starts repeating after 16 frames, then moves every 6.</p>
+
+    <div class="section-label">Placements, not key presses</div>
+    <p>Searching over key presses doesn't work. There are 60 frames a second, and almost every frame's
+      choice changes nothing. So the AI thinks one level up: a move is a <b>placement</b>, a pair of how
+      many columns to shift (−5 to 5) and how many quarter turns to rotate (0 to 3). That's 44 moves per
+      piece, and several of them land in the same spot when the piece hits a wall.</p>
+    <p>To make a move, it presses the rotation keys, taps left or right once per column (with a released
+      frame between taps, so the key repeat never kicks in), then hard drops. While searching it plays those
+      same presses on a copy of the game, so what it imagines is exactly what will happen.</p>
+    <canvas class="tx-diagram" id="aboutMoves" width="440" height="300"></canvas>
+    <p class="tx-caption" id="aboutMovesCap"></p>
+
+    <div class="section-label">Scoring a board</div>
+    <p>It doesn't score boards by game points. Points mostly come from line clears, and a clear takes
+      several pieces to set up, so a short search sees almost none. Instead it looks at the shape of what's
+      left, using four numbers and weights from
+      <a href="https://codemyroad.wordpress.com/2013/04/14/tetris-ai-the-near-perfect-player/" target="_blank" rel="noopener">Yiyuan Lee's Tetris AI</a>:</p>
+    <table class="tx-weights">
+      <tr><td><b>height</b>: the column heights added up</td><td>−0.510</td></tr>
+      <tr><td><b>lines</b> this placement cleared</td><td>+0.761</td></tr>
+      <tr><td><b>holes</b>: empty cells with a block right above</td><td>−0.357</td></tr>
+      <tr><td><b>bumpiness</b>: height jumps between neighbors</td><td>−0.184</td></tr>
+    </table>
+    <p>The score is the weighted sum. A low, flat board with no covered gaps scores best. Mike's version
+      measures a column's height as the row index of its top block, so a block sitting on the floor counts
+      as 0, and a hole is only the cell directly under a block.</p>
+    <canvas class="tx-diagram" id="aboutScore" width="440" height="300"></canvas>
+    <p class="tx-caption" id="aboutScoreCap"></p>
+
+    <div class="section-label">Looking ahead</div>
+    <p>The next pieces are on screen, so the AI can plan for them too. With <b>2 pieces</b> it tries every
+      placement of the current piece, then every placement of the next one after it, and gives each first
+      move the score of its best follow-up: 44 × 44 = 1,936 boards per piece. It's called minimax in the
+      code, but with one player there's nothing to minimize, so it's a plain search for the best sequence.
+      Ties go to a random one.</p>
+
+    <div class="section-label">What it can't do</div>
+    <p>Because every move ends in a hard drop from above, it never slides a piece under an overhang or
+      spins a T into a slot. What it does well is play quickly and cleanly, using few inputs per piece,
+      which is how it survives gravity of 20 rows per frame. The game also pauses while the AI thinks,
+      as the Python version did.</p>
+  </template>
+
+  <mike-footer overlay></mike-footer>
+  <script type="module" src="src/main.mjs"></script>
+</body>
+</html>

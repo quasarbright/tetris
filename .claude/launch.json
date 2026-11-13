@@ -1,0 +1,6 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    { "name": "tetris", "url": "http://localhost:8946", "port": 8946 }
+  ]
+}

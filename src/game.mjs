@@ -189,16 +189,19 @@ export class Game {
 
   clearRows() {
     let clearCount = 0;
-    const rows = [];
+    const rows = [], rowCells = [];
     for (let y = this.height - 1; y >= 0; y--) {
       if (this.grid[y].every((c) => c !== null)) {
         rows.push(y);
+        if (this.listener) rowCells.push(this.grid[y].slice());
         this.grid.splice(y, 1);
         this.grid.push(new Array(this.width).fill(null));
         clearCount++;
       }
     }
-    this.lastClearedRows = rows; // for the page's effects only
+    // for the page's effects only: which rows (indices before the clear, top first) and their blocks
+    this.lastClearedRows = rows;
+    this.lastClearedRowCells = rowCells;
     return clearCount;
   }
 
@@ -318,7 +321,7 @@ export class Game {
     const enteredDanger = newHeight > this.dangerZone && oldHeight <= this.dangerZone;
     const exitedDanger = newHeight <= this.dangerZone && oldHeight > this.dangerZone;
     this.emit("lock", {
-      cells, piece: lockedPiece, clears, rows: this.lastClearedRows, tspin: before.tspin,
+      cells, piece: lockedPiece, clears, rows: this.lastClearedRows, rowCells: this.lastClearedRowCells, tspin: before.tspin,
       scoreGain: this.score - before.score, enteredDanger, exitedDanger,
     });
     this.lockTime = 0;
