@@ -138,18 +138,15 @@ test("the worker's search matches the in-page search on the same state", async (
   expect(r.chosen).toBe(r.best);
 });
 
-test("AI controls: speed slider, level (gravity) and lookahead", async ({ page }) => {
+test("AI controls: speed slider and lookahead, no level control", async ({ page }) => {
   await open(page, "?seed=19&play=ai");
   await page.locator("#speed").fill("100");
   expect((await info(page)).fps).toBe(6000);
   await expect(page.locator("#speedVal")).toHaveText("6.0k/s");
   await page.locator("#speed").fill("0");
   expect((await info(page)).fps).toBe(6);
-  for (let i = 0; i < 14; i++) await page.click("#levelUp");
-  expect((await info(page)).level).toBe(20);
-  await expect(page.locator("#gravVal")).toContainText("G");
-  await page.click("#levelDown");
-  expect((await info(page)).level).toBe(19);
+  // gravity comes only from the level, which only the game changes
+  await expect(page.locator("#levelUp, #levelDown, #gravVal")).toHaveCount(0);
   await page.click('#depthSeg button[data-depth="0"]');
   expect((await info(page)).depth).toBe(0);
   await expect(page.locator('#depthSeg button[data-depth="0"]')).toHaveClass(/is-on/);

@@ -15,9 +15,9 @@ Keyboard: ← → move, ↓ soft drop, space hard drop, Z / X rotate (↑ also r
 shift hold (C also holds), Esc or P pause, A hand the game to the AI or take it back, M sound.
 On a phone, on-screen buttons hold their input while pressed, so auto-repeat works the same.
 
-While the AI plays: **speed** sets game frames per second (60 is normal, up to 6,000),
-**level** sets gravity, and **looks ahead** picks the search depth (1 piece = `maxDepth` 0,
-2 pieces = `maxDepth` 1).
+While the AI plays: **speed** sets game frames per second (60 is normal, up to 6,000) and
+**looks ahead** picks the search depth (1 piece = `maxDepth` 0, 2 pieces = `maxDepth` 1).
+Gravity only comes from the level, which goes up as lines are cleared.
 
 ## Layout
 

@@ -196,6 +196,7 @@ function setFps(f, fromSlider) {
 }
 $("speed").addEventListener("input", (e) => setFps(sliderToFps(Number(e.target.value)), true));
 
+// for tests only: the game sets the level (and so gravity) itself as lines are cleared
 function setLevel(l) {
   const g = S.game;
   if (!g) return;
@@ -206,8 +207,6 @@ function setLevel(l) {
   document.body.style.setProperty("--well-hue", Math.round(hueForLevel(l)));
   syncHUD(true);
 }
-$("levelDown").addEventListener("click", () => setLevel(S.game.level - 1));
-$("levelUp").addEventListener("click", () => setLevel(S.game.level + 1));
 
 function setDepth(d) {
   S.depth = d;
@@ -323,11 +322,6 @@ function syncHUD(force) {
   set("score", g.score.toLocaleString());
   set("lines", String(g.totalLinesCleared));
   set("level", String(g.level));
-  set("levelVal", String(g.level));
-  const save = g.isSoftDropping; g.isSoftDropping = false;
-  const rowsPerFrame = 1 / g.getGravity();
-  g.isSoftDropping = save;
-  set("gravVal", rowsPerFrame >= 1 ? `${Math.trunc(rowsPerFrame)}G` : `${rowsPerFrame.toFixed(rowsPerFrame < 0.1 ? 3 : 2)}G`);
 }
 
 // ---------- layout ----------

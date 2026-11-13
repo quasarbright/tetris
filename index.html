@@ -134,9 +134,7 @@
     .tx-ctl-label { display: flex; flex-direction: column; gap: 3px; font: 700 .72rem var(--font-ui); color: var(--faint); letter-spacing: .04em; }
     .tx-ctl-row { display: flex; align-items: center; gap: 8px; }
     .tx-val { font: 500 .85rem var(--font-mono); color: var(--text); width: 7ch; text-align: right; }
-    .tx-val.is-level { width: 2.5ch; text-align: center; }
     input.tx-range { width: 150px; accent-color: #ffd84a; margin: 0; }
-    .tx-step { width: 30px; height: 30px; padding: 0; border-radius: 10px; font-size: 1.1rem; box-shadow: 0 3px 0 var(--lip); }
     .tx-seg { display: inline-flex; background: var(--panel-2); border-radius: 10px; padding: 3px; gap: 2px; }
     .tx-seg button {
       border: 0; background: transparent; color: var(--muted); font: 700 .82rem var(--font-ui);
@@ -268,15 +266,6 @@
         speed
         <span class="tx-ctl-row"><input type="range" class="tx-range" id="speed" min="0" max="100" step="1" title="how many game frames run per second. 60 is the speed the game was made for; the game also waits whenever the AI is still thinking"><span class="tx-val" id="speedVal"></span></span>
       </label>
-      <div class="tx-ctl-label" title="gravity comes from the level: higher levels drop pieces faster, up to many rows per frame">
-        level (gravity)
-        <span class="tx-ctl-row">
-          <button class="tx-btn tx-step" id="levelDown" title="lower the level: slower gravity">−</button>
-          <span class="tx-val is-level" id="levelVal">6</span>
-          <button class="tx-btn tx-step" id="levelUp" title="raise the level: faster gravity">+</button>
-          <span class="tx-val" id="gravVal" title="rows a piece falls per frame at this level"></span>
-        </span>
-      </div>
       <div class="tx-ctl-label" title="how many pieces the AI plans for: just the current one, or the current one and the next">
         looks ahead
         <span class="tx-seg" id="depthSeg">
