@@ -4,3 +4,4 @@ playwright-report/
 __pycache__/
 .DS_Store
 screenshot-candidates/
+mocks/
