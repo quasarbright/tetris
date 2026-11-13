@@ -364,9 +364,11 @@
 
     <div class="section-label">What it can't do</div>
     <p>Because every move ends in a hard drop from above, it never slides a piece under an overhang or
-      spins a T into a slot. What it does well is play quickly and cleanly, using few inputs per piece,
-      which is how it survives gravity of 20 rows per frame. The game also pauses while the AI thinks,
-      as the Python version did.</p>
+      spins a T into a slot. What it does well is play quickly and cleanly, using few inputs per piece.
+      That's how it survives gravity of a row or more per frame (level 18 and up), where a piece hits
+      the stack almost as soon as it appears. Around level 25, with about six rows per frame, a piece
+      can't slide past a tall column any more and the AI tops out within a few dozen lines. The game
+      also pauses while the AI thinks, as the Python version did.</p>
   </template>
 
   <mike-footer overlay></mike-footer>

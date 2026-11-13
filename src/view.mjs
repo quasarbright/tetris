@@ -64,7 +64,8 @@ export class View {
     this.ctx = canvas.getContext("2d");
     this.gctx = glow.getContext("2d");
     this.game = null;
-    this.fx = { particles: [], trails: [], flashes: [], rowFlashes: [], texts: [], shake: null, fall: null, levelFlash: null, death: null, lockPulse: [] };
+    this.fx = { particles: [], trails: [], flashes: [], rowFlashes: [], texts: [], rings: [], shake: null, fall: null, levelFlash: null, death: null, lockPulse: [] };
+    this.drifters = [];
     this.candidates = null;
     this.fast = false;      // high sim speed: skip the slower animations
     this.hue = 0;           // well tint, follows the level
@@ -116,8 +117,59 @@ export class View {
       nextBox = { x: wellX + 10.9 * cell, y: wellY, w: side, h: 10 * cell };
     }
     if (!(cell >= 6)) return this.L; // no room (hidden or tiny window): keep the last layout
-    this.L = { cell, wellX, wellY, wellW: 10 * cell, wellH: VISIBLE * cell, holdBox, nextBox, preview, phone };
+    this.L = { cell, wellX, wellY, wellW: 10 * cell, wellH: VISIBLE * cell, holdBox, nextBox, preview, phone, W, H };
+    if (!this.drifters.length) this.seedDrifters();
     return this.L;
+  }
+
+  // big faint piece outlines drifting up behind everything
+  seedDrifters() {
+    const types = Object.keys(PIECE_COLORS);
+    const n = 9;
+    for (let i = 0; i < n; i++) {
+      this.drifters.push({
+        // spread across the width in strata so they don't clump
+        type: types[i % types.length], x: (i + 0.2 + Math.random() * 0.6) / n, y: Math.random(), size: 0.6 + Math.random() * 0.8,
+        rot: Math.floor(Math.random() * 4), spin: (Math.random() - 0.5) * 0.12, angle: Math.random() * 6.28,
+        speed: 0.006 + Math.random() * 0.012,
+      });
+    }
+  }
+
+  drawDrifters(ctx, dt) {
+    const L = this.L, s0 = L.cell * 1.6;
+    ctx.lineWidth = 1.5;
+    for (const d of this.drifters) {
+      d.y -= d.speed * dt * (this.fast ? 4 : 1);
+      d.angle += d.spin * dt;
+      const s = s0 * d.size;
+      if (d.y < -0.15) d.y = 1.15;
+      const cells = new Tetrimino(d.type, d.rot).offsets();
+      ctx.save();
+      ctx.translate(d.x * L.W, d.y * L.H);
+      ctx.rotate(d.angle);
+      ctx.strokeStyle = `hsla(${this.hue}, 70%, 72%, .045)`;
+      ctx.fillStyle = `hsla(${this.hue}, 70%, 60%, .015)`;
+      for (const p of cells) {
+        ctx.beginPath(); ctx.roundRect((p.x - 1.5) * s, (1 - p.y) * s, s - 4, s - 4, s * 0.16);
+        ctx.fill(); ctx.stroke();
+      }
+      ctx.restore();
+    }
+  }
+
+  drawRings(ctx, g, now) {
+    const fx = this.fx;
+    fx.rings = fx.rings.filter((r) => now - r.t0 < 650);
+    for (const r of fx.rings) {
+      const t = (now - r.t0) / 650;
+      const rad = this.L.wellW * (0.15 + 1.3 * ease(t));
+      for (const k of [ctx, g]) {
+        k.strokeStyle = rgba(PIECE_COLORS.I, 0.8 * (1 - t));
+        k.lineWidth = this.L.cell * 0.35 * (1 - t) + 1;
+        k.beginPath(); k.arc(r.x, r.y, rad, 0, Math.PI * 2); k.stroke();
+      }
+    }
   }
 
   // ---- coordinates ----
@@ -176,6 +228,11 @@ export class View {
     fx.texts = fx.texts.filter((t) => t.big); // a new clear replaces the last small label
     const topRow = Math.max(...data.rows);
     const yFrac = (this.sy(Math.min(topRow, VISIBLE - 1)) - this.L.wellY) / this.L.wellH;
+    if (n === 4) {
+      const rows = data.rows.filter((r) => r < VISIBLE);
+      const cy = rows.length ? (this.sy(Math.max(...rows)) + this.sy(Math.min(...rows)) + c) / 2 : this.L.wellY + this.L.wellH;
+      fx.rings.push({ x: this.L.wellX + this.L.wellW / 2, y: cy, t0: now });
+    }
     if (n === 4 || data.tspin) {
       fx.texts.push({ text: label, sub: data.scoreGain > 0 ? `+${data.scoreGain.toLocaleString()}` : "", t0: now, dur: 1300, size: n === 4 ? 1.35 : 1.0, color: n === 4 ? PIECE_COLORS.I : PIECE_COLORS.T, y: Math.max(0.2, yFrac - 0.08), big: true });
       fx.shake = { amp: n === 4 ? 14 : 8, t0: now };
@@ -236,6 +293,7 @@ export class View {
       if (t >= 1) fx.shake = null;
       else shakeY = fx.shake.amp * Math.sin(t * Math.PI * 2.2) * (1 - t) * (1 - t);
     }
+    this.drawDrifters(ctx, dt);
     ctx.save(); g.save();
     ctx.translate(0, shakeY); g.translate(0, shakeY);
 
@@ -252,6 +310,7 @@ export class View {
     ctx.restore(); g.restore();
 
     this.drawPreviews(ctx, g);
+    this.drawRings(ctx, g, now);
     this.drawTexts(ctx, g, now);
   }
 
@@ -303,13 +362,19 @@ export class View {
     if (this.fx.levelFlash) {
       const t = (now - this.fx.levelFlash.t0) / 900;
       if (t < 1) {
-        const by = y + hh - ease(t) * (hh + 2 * c);
-        const band = ctx.createLinearGradient(0, by - 2 * c, 0, by + 2 * c);
-        band.addColorStop(0, `hsla(${h}, 100%, 75%, 0)`);
-        band.addColorStop(0.5, `hsla(${h}, 100%, 80%, ${0.35 * (1 - t)})`);
-        band.addColorStop(1, `hsla(${h}, 100%, 75%, 0)`);
-        ctx.fillStyle = band;
-        ctx.fillRect(x, Math.max(y, by - 2 * c), w, Math.min(4 * c, y + hh - (by - 2 * c)));
+        // a thin line of light rising up the well, added on top (not painted over)
+        const by = y + hh - ease(t) * hh;
+        const band = ctx.createLinearGradient(0, by - c, 0, by + c);
+        band.addColorStop(0, `hsla(${h}, 100%, 70%, 0)`);
+        band.addColorStop(0.5, `hsla(${h}, 100%, 75%, ${0.5 * (1 - t)})`);
+        band.addColorStop(1, `hsla(${h}, 100%, 70%, 0)`);
+        for (const k of [ctx, g]) {
+          k.save();
+          k.globalCompositeOperation = "lighter";
+          k.fillStyle = band;
+          k.fillRect(x, by - c, w, 2 * c);
+          k.restore();
+        }
       }
     }
   }

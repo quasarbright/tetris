@@ -353,7 +353,7 @@ let last = performance.now();
 function frame(now) {
   const dt = Math.min(0.1, (now - last) / 1000);
   last = now;
-  const running = (S.screen === "play" || S.attract) && S.game && !S.game.dead;
+  const running = (S.screen === "play" || S.attract) && S.game && !S.game.dead && !S.frozen;
   if (running) {
     S.acc += S.fps * dt;
     S.acc = Math.min(S.acc, Math.max(4, S.fps * 0.1)); // no huge catch-up after a stall
@@ -370,7 +370,7 @@ function frame(now) {
     if (S.screen === "play" && now - S.deadAt > 1300) { S.deadAt = 0; gameOver(); }
   }
   view.fast = S.fps > 200;
-  view.draw(now);
+  if (!S.paintHold) view.draw(now);
   syncHUD(false);
   requestAnimationFrame(frame);
 }
@@ -385,6 +385,17 @@ function stepOnce() {
 // ---------- test hook ----------
 window.tetris = {
   S, view,
+  // stop the frame loop from advancing the game (tests then drive it with step())
+  freeze(on = true) { S.frozen = on; },
+  // for looking at effects: run `fn` (which triggers them), then draw `ms` of animation at
+  // 60 fps right away and hold that picture until paintHold is cleared
+  renderAfter(fn, ms) {
+    S.paintHold = true;
+    const t0 = performance.now();
+    fn();
+    for (let t = 0; t <= ms; t += 16) view.draw(t0 + t);
+  },
+  release() { S.paintHold = false; },
   Game, newGame, startPlay, startAttract, setDriver, setFps, setLevel, setDepth, togglePause,
   // advance n frames now (human: with the given held inputs; AI: waits are skipped by retrying)
   step(n = 1, inputs = null) {

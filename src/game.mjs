@@ -123,7 +123,8 @@ export class Game {
   getGravity() {
     const level = this.level;
     // QUIRK: the guideline curve is (0.8 - (level-1)*0.007)^(level-1); this has 0.0007, so
-    // gravity speeds up more slowly than the guideline's (level 15 is ~0.06 s/row, not ~0.007)
+    // gravity speeds up more slowly than the guideline's (level 15: 0.037 s/row, not 0.007)
+    // and has no 20G cap (level 18 is about 1 row per frame, level 30 about 23)
     let seconds = Math.pow(0.8 - (level - 1) * 0.0007, level - 1);
     if (this.isSoftDropping) {
       // QUIRK: soft drop adds 20 rows/second rather than multiplying gravity by 20
