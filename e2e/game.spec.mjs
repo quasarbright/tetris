@@ -19,7 +19,8 @@ test("start screen, then Play starts a human game at level 6", async ({ page }) 
 
 test("hard drop scores 2 per row and locks; hold swaps in the next piece", async ({ page }) => {
   await open(page, "?seed=5&play=human");
-  await page.evaluate(() => tetris.freeze());
+  // freeze, then start over, so a slow page load can't let a piece fall and lock first
+  await page.evaluate(() => { tetris.freeze(); tetris.startPlay("human"); });
   const before = await info(page);
   const r = await page.evaluate(() => {
     const g = tetris.S.game;

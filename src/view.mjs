@@ -92,19 +92,21 @@ export class View {
       c.style.width = W + "px";
       c.style.height = H + "px";
     }
-    const rowsTall = VISIBLE + VANISH * 0.9;
+    // the spawn rows above the well get less room on phones, where height is what limits the board
+    const vanishShow = phone ? 0.7 : 0.9;
+    const rowsTall = VISIBLE + VANISH * vanishShow;
     let cell, wellX, wellY, side, holdBox, nextBox, preview;
     if (phone) {
-      const sideCells = 3.3;
-      cell = Math.floor(Math.min(rect.h / rowsTall, (rect.w - 6) / (10 + sideCells + 0.5)));
+      const sideCells = 2.5, gapCells = 0.35;
+      cell = Math.floor(Math.min(rect.h / rowsTall, (rect.w - 4) / (10 + sideCells + gapCells)));
       side = sideCells * cell;
-      const total = 10 * cell + 0.5 * cell + side;
+      const total = 10 * cell + gapCells * cell + side;
       wellX = Math.round(rect.x + (rect.w - total) / 2);
-      wellY = Math.round(rect.y + (rect.h - rowsTall * cell) / 2 + VANISH * 0.9 * cell);
-      const sx = wellX + 10.5 * cell;
-      preview = cell * 0.62;
-      holdBox = { x: sx, y: wellY, w: side, h: 3.1 * cell };
-      nextBox = { x: sx, y: wellY + 3.9 * cell, w: side, h: 8.4 * cell };
+      wellY = Math.round(rect.y + (rect.h - rowsTall * cell) / 2 + VANISH * vanishShow * cell);
+      const sx = wellX + (10 + gapCells) * cell;
+      preview = cell * 0.5;
+      holdBox = { x: sx, y: wellY, w: side, h: 2.5 * cell };
+      nextBox = { x: sx, y: wellY + 3.1 * cell, w: side, h: 7 * cell };
     } else {
       const sideCells = 4.6;
       cell = Math.floor(Math.min(rect.h / rowsTall, rect.w / (10 + 2 * (sideCells + 0.9))));
