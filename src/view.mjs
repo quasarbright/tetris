@@ -534,7 +534,9 @@ export class View {
       const best = rank === 0;
       const a = (best ? 0.95 : 0.45 * (1 - rank / cand.top.length)) * fade;
       ctx.setLineDash(best ? [] : [c * 0.18, c * 0.14]);
-      ctx.strokeStyle = best ? `rgba(255,255,255,${a})` : `rgba(180,200,255,${a})`;
+      // the AI's pick in its yellow (the badge, the Take over button); runners-up faint
+      ctx.strokeStyle = best ? `rgba(255,216,74,${a})` : `rgba(180,200,255,${a})`;
+      ctx.lineWidth = best ? Math.max(1.5, c * 0.08) : Math.max(1, c * 0.05);
       for (const p of k.cells) {
         if (p.y >= VISIBLE + VANISH) continue;
         ctx.strokeRect(this.sx(p.x) + c * 0.3, this.sy(p.y) + c * 0.3, c * 0.4, c * 0.4);

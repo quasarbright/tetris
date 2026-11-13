@@ -22,7 +22,9 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: `python3 -m http.server ${PORT}`,
+    // threaded, one request per connection (python3 -m http.server stalls module loads
+    // under parallel workers), from the 2048 sketch
+    command: `python3 e2e/serve.py ${PORT} .`,
     url: `http://localhost:${PORT}/index.html`,
     // never reuse: a stray server on this port (another project) would get tested instead
     reuseExistingServer: false,
